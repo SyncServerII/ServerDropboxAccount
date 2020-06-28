@@ -34,8 +34,8 @@ public class DropboxCreds : AccountAPICall, Account {
     
     static let accountIdKey = "accountId"
     var accountId: String!
-    
-    public override init?() {
+
+    required public init?(configuration: Any? = nil) {
         super.init()
         baseURL = "api.dropboxapi.com"
     }
