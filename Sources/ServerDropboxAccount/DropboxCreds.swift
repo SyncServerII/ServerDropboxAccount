@@ -100,8 +100,8 @@ public class DropboxCreds : AccountAPICall, Account {
         return result
     }
     
-    public static func fromProperties(_ properties: AccountProperties, user:AccountCreationUser?, delegate:AccountDelegate?) -> Account? {
-        guard let creds = DropboxCreds() else {
+    public static func fromProperties(_ properties: AccountProperties, user:AccountCreationUser?, configuration: Any?, delegate:AccountDelegate?) -> Account? {
+        guard let creds = DropboxCreds(configuration: configuration) else {
             return nil
         }
         
@@ -124,13 +124,13 @@ public class DropboxCreds : AccountAPICall, Account {
         return creds
     }
     
-    public static func fromJSON(_ json:String, user:AccountCreationUser, delegate:AccountDelegate?) throws -> Account? {
+    public static func fromJSON(_ json:String, user:AccountCreationUser, configuration: Any?, delegate:AccountDelegate?) throws -> Account? {
         guard let jsonDict = json.toJSONDictionary() as? [String:String] else {
             Log.error("Could not convert string to JSON [String:String]: \(json)")
             return nil
         }
         
-        guard let result = DropboxCreds() else {
+        guard let result = DropboxCreds(configuration: configuration) else {
             return nil
         }
         
