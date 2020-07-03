@@ -93,7 +93,7 @@ class FileDropboxTests: XCTestCase {
 #endif
 
     func testCheckForFileFailsWithFileThatDoesNotExist() {
-        guard let creds = DropboxCreds() else {
+        guard let creds = DropboxCreds(configuration: nil, delegate: nil) else {
             XCTFail()
             return
         }
@@ -120,7 +120,7 @@ class FileDropboxTests: XCTestCase {
     }
 
     func testCheckForFileWorksWithExistingFile() {
-        guard let creds = DropboxCreds() else {
+        guard let creds = DropboxCreds(configuration: nil, delegate: nil) else {
             XCTFail()
             return
         }
@@ -147,7 +147,7 @@ class FileDropboxTests: XCTestCase {
     func uploadFile(file: TestFile, mimeType: MimeType) {
         let fileName = Foundation.UUID().uuidString
         
-        guard let creds = DropboxCreds() else {
+        guard let creds = DropboxCreds(configuration: nil, delegate: nil) else {
             XCTFail()
             return
         }
@@ -199,7 +199,7 @@ class FileDropboxTests: XCTestCase {
     func testUploadWithRevokedToken() {
         let fileName = Foundation.UUID().uuidString
         
-        guard let creds = DropboxCreds() else {
+        guard let creds = DropboxCreds(configuration: nil, delegate: nil) else {
             XCTFail()
             return
         }
@@ -307,7 +307,7 @@ class FileDropboxTests: XCTestCase {
         let deviceUUID = Foundation.UUID().uuidString
         let fileUUID = Foundation.UUID().uuidString
         
-        guard let creds = DropboxCreds() else {
+        guard let creds = DropboxCreds(configuration: nil, delegate: nil) else {
             XCTFail()
             return
         }
@@ -382,7 +382,7 @@ class FileDropboxTests: XCTestCase {
     }
     
     func testDownloadOfNonExistingFileFails() {
-        guard let creds = DropboxCreds() else {
+        guard let creds = DropboxCreds(configuration: nil, delegate: nil) else {
             XCTFail()
             return
         }
@@ -394,7 +394,7 @@ class FileDropboxTests: XCTestCase {
     }
     
     func testSimpleDownloadWorks() {
-        guard let creds = DropboxCreds() else {
+        guard let creds = DropboxCreds(configuration: nil, delegate: nil) else {
             XCTFail()
             return
         }
@@ -406,7 +406,7 @@ class FileDropboxTests: XCTestCase {
     }
 
     func testDownloadWithRevokedToken() {
-        guard let creds = DropboxCreds() else {
+        guard let creds = DropboxCreds(configuration: nil, delegate: nil) else {
             XCTFail()
             return
         }
@@ -418,7 +418,7 @@ class FileDropboxTests: XCTestCase {
     }
 
     func testSimpleDownloadWorks2() {
-        guard let creds = DropboxCreds() else {
+        guard let creds = DropboxCreds(configuration: nil, delegate: nil) else {
             XCTFail()
             return
         }
@@ -433,7 +433,7 @@ class FileDropboxTests: XCTestCase {
         let deviceUUID = Foundation.UUID().uuidString
         let fileUUID = Foundation.UUID().uuidString
         
-        guard let creds = DropboxCreds() else {
+        guard let creds = DropboxCreds(configuration: nil, delegate: nil) else {
             XCTFail()
             return
         }
@@ -487,7 +487,7 @@ class FileDropboxTests: XCTestCase {
     }
 
     func testDeletionWithRevokedAccessToken() {
-        guard let creds = DropboxCreds() else {
+        guard let creds = DropboxCreds(configuration: nil, delegate: nil) else {
             XCTFail()
             return
         }
@@ -519,7 +519,7 @@ class FileDropboxTests: XCTestCase {
     }
 
     func testDeletionOfNonExistingFileFails() {
-        guard let creds = DropboxCreds() else {
+        guard let creds = DropboxCreds(configuration: nil, delegate: nil) else {
             XCTFail()
             return
         }
@@ -533,7 +533,7 @@ class FileDropboxTests: XCTestCase {
         let deviceUUID = Foundation.UUID().uuidString
         let fileUUID = Foundation.UUID().uuidString
         
-        guard let creds = DropboxCreds() else {
+        guard let creds = DropboxCreds(configuration: nil, delegate: nil) else {
             XCTFail()
             return
         }
@@ -566,7 +566,7 @@ class FileDropboxTests: XCTestCase {
     func lookupFile(cloudFileName: String, expectError:Bool = false) -> Bool? {
         var foundResult: Bool?
         
-        guard let creds = DropboxCreds() else {
+        guard let creds = DropboxCreds(configuration: nil, delegate: nil) else {
             XCTFail()
             return nil
         }
@@ -609,7 +609,7 @@ class FileDropboxTests: XCTestCase {
     }
 
     func testLookupWithRevokedAccessToken() {
-        guard let creds = DropboxCreds() else {
+        guard let creds = DropboxCreds(configuration: nil, delegate: nil) else {
             XCTFail()
             return
         }

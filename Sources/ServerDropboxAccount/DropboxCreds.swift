@@ -26,7 +26,7 @@ public class DropboxCreds : AccountAPICall, Account {
         return false
     }
     
-    public weak var delegate:AccountDelegate?
+    weak var delegate:AccountDelegate?
     public var accountCreationUser:AccountCreationUser?
     
     static let accessTokenKey = "accessToken"
@@ -35,8 +35,9 @@ public class DropboxCreds : AccountAPICall, Account {
     static let accountIdKey = "accountId"
     var accountId: String!
 
-    required public init?(configuration: Any? = nil) {
+    required public init?(configuration: Any? = nil, delegate: AccountDelegate?) {
         super.init()
+        self.delegate = delegate
         baseURL = "api.dropboxapi.com"
     }
     
@@ -101,12 +102,11 @@ public class DropboxCreds : AccountAPICall, Account {
     }
     
     public static func fromProperties(_ properties: AccountProperties, user:AccountCreationUser?, configuration: Any?, delegate:AccountDelegate?) -> Account? {
-        guard let creds = DropboxCreds(configuration: configuration) else {
+        guard let creds = DropboxCreds(configuration: configuration, delegate: delegate) else {
             return nil
         }
         
         creds.accountCreationUser = user
-        creds.delegate = delegate
         creds.accessToken =
             properties.properties[ServerConstants.HTTPOAuth2AccessTokenKey] as? String
             
@@ -130,11 +130,10 @@ public class DropboxCreds : AccountAPICall, Account {
             return nil
         }
         
-        guard let result = DropboxCreds(configuration: configuration) else {
+        guard let result = DropboxCreds(configuration: configuration, delegate: delegate) else {
             return nil
         }
         
-        result.delegate = delegate
         result.accountCreationUser = user
         
         // Owning users have access token's in creds.
