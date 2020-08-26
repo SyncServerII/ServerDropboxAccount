@@ -54,6 +54,7 @@ public class DropboxCreds : AccountAPICall, Account {
     public func needToGenerateTokens(dbCreds:Account?) -> Bool {
         // 7/6/18; Previously, for Dropbox, I was returning false. But I want to deal with the case where a user a) deauthorizes the client app from using Dropbox, and then b) authorizes it again. This will make the access token we have in the database invalid. This will refresh it.
         // 8/25/20; While the above seems like a good idea, it is disconnected from `generateTokens` below, which is invoked when this returns true but below doesn't actually generate new tokens. So, changing this back to returning `false` for now.
+        // Also see https://github.com/SyncServerII/ServerMain/issues/4 -- this was causing a crash when returning `true`.
         return false
     }
     
