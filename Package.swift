@@ -1,6 +1,9 @@
 // swift-tools-version:5.2
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
+// Problems building this package on Mac OS: https://stackoverflow.com/questions/65452179/xcode-giving-cannot-find-type-type-in-scope-errors-with-swift-package
+// And https://forums.swift.org/t/recent-problems-using-xcode-as-editor-with-kitura-based-packages/43359
+
 import PackageDescription
 
 let package = Package(

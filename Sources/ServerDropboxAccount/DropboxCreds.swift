@@ -13,6 +13,11 @@ import LoggerAPI
 import KituraNet
 import ServerAccount
 
+public protocol DropboxCredsConfiguration {
+    var DropboxAppKey:String? { get }
+    var DropboxAppSecret:String? { get }
+}
+
 public class DropboxCreds : AccountAPICall, Account {
     public static var accountScheme:AccountScheme {
         return .dropbox
@@ -38,9 +43,15 @@ public class DropboxCreds : AccountAPICall, Account {
     static let accountIdKey = "accountId"
     var accountId: String!
 
+    var configuration: DropboxCredsConfiguration?
+
     required public init?(configuration: Any? = nil, delegate: AccountDelegate?) {
         super.init()
         self.delegate = delegate
+        guard let configuration = configuration as? DropboxCredsConfiguration else {
+            return nil
+        }
+        self.configuration = configuration
         baseURL = "api.dropboxapi.com"
     }
     
@@ -57,10 +68,12 @@ public class DropboxCreds : AccountAPICall, Account {
     
     // Given existing Account info stored in the database, decide if we need to generate tokens. Token generation can be used for various purposes by the particular Account. E.g., For owning users to allow access to cloud storage data in offline manner. E.g., to allow access that data by sharing users.
     public func needToGenerateTokens(dbCreds:Account?) -> Bool {
-        // 7/6/18; Previously, for Dropbox, I was returning false. But I want to deal with the case where a user a) deauthorizes the client app from using Dropbox, and then b) authorizes it again. This will make the access token we have in the database invalid. This will refresh it.
-        // 8/25/20; While the above seems like a good idea, it is disconnected from `generateTokens` below, which is invoked when this returns true but below doesn't actually generate new tokens. So, changing this back to returning `false` for now.
-        // Also see https://github.com/SyncServerII/ServerMain/issues/4 -- this was causing a crash when returning `true`.
-        return false
+        // 12/25/20; With the change by Dropbox to short-lived access tokens and refresh tokens, I have some new needs:
+        // 1) When a refresh token arrives from the client, I need to save it to the database. (This may involve some checking to see if the refresh token has actually changed).
+        // 2) When cloud storage access is taking place and the access token has expired, I need to be able to refresh the access token using the refresh token and save that new access token to the database.
+        
+        // Return true here to accomplish 1)-- to save new access token/refresh token arriving from the client.
+        return true
     }
     
     public func generateTokens(completion:@escaping (Swift.Error?)->()) {
@@ -86,9 +99,17 @@ public class DropboxCreds : AccountAPICall, Account {
             return
         }
         
-        // Both of these will be present-- both are necessary to authenticate with Dropbox.
-        accountId = newerDropboxCreds.accountId
-        accessToken = newerDropboxCreds.accessToken
+        if let accountId = newerDropboxCreds.accountId {
+            self.accountId = accountId
+        }
+        
+        if let accessToken = newerDropboxCreds.accessToken {
+            self.accessToken = accessToken
+        }
+        
+        if let refreshToken = newerDropboxCreds.refreshToken {
+            self.refreshToken = refreshToken
+        }
     }
     
     public static func getProperties(fromHeaders headers:AccountHeaders) -> [String: Any] {
@@ -117,6 +138,7 @@ public class DropboxCreds : AccountAPICall, Account {
         creds.accountCreationUser = user
         creds.accessToken =
             properties.properties[ServerConstants.HTTPOAuth2AccessTokenKey] as? String
+        creds.refreshToken =             properties.properties[ServerConstants.httpRequestRefreshToken] as? String
             
         // Deal with deprecated ServerConstants.HTTPAccountIdKey
         if let accountId = properties.properties[ServerConstants.HTTPAccountIdKey] as? String {
