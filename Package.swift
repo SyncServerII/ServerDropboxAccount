@@ -11,7 +11,7 @@ let package = Package(
             targets: ["ServerDropboxAccount"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/SyncServerII/ServerAccount.git", from: "0.0.2"),
+        .package(url: "https://github.com/SyncServerII/ServerAccount.git", from: "0.0.6")
     ],
     targets: [
         .target(

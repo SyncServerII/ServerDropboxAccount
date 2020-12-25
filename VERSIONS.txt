@@ -1,0 +1,5 @@
+ServerDropboxAccount
+	
+Version 0.0.2 (12/24/20)
+	Migration to short-lived access tokens & refresh token.
+

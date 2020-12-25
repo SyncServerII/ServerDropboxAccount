@@ -43,7 +43,7 @@ struct TestFile {
 #if os(macOS)
         private static let catFileURL = URL(fileURLWithPath: "/tmp/Cat.jpg")
 #else
-        private static let catFileURL = URL(fileURLWithPath: "./Resources/Cat.jpg")
+        private static let catFileURL = URL(fileURLWithPath: "./TestDataFiles/Cat.jpg")
 #endif
 
     static let catJpg = TestFile(
@@ -54,7 +54,7 @@ struct TestFile {
 #if os(macOS)
         private static let urlFile = URL(fileURLWithPath: "/tmp/example.url")
 #else
-        private static let urlFile = URL(fileURLWithPath: "./Resources/example.url")
+        private static let urlFile = URL(fileURLWithPath: "./TestDataFiles/example.url")
 #endif
 
     // The specific hash values are obtained from bootstraps in the iOS client test cases.

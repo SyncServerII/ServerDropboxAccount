@@ -31,7 +31,10 @@ public class DropboxCreds : AccountAPICall, Account {
     
     static let accessTokenKey = "accessToken"
     public var accessToken: String!
-    
+
+    static let refreshTokenKey = "refreshToken"
+    public var refreshToken: String!
+
     static let accountIdKey = "accountId"
     var accountId: String!
 
@@ -45,6 +48,8 @@ public class DropboxCreds : AccountAPICall, Account {
         var jsonDict = [String:String]()
 
         jsonDict[DropboxCreds.accessTokenKey] = self.accessToken
+        jsonDict[DropboxCreds.refreshTokenKey] = self.refreshToken
+        
         // Don't need the accountId in the json because its saved as the credsId in the database.
         
         return JSONExtras.toJSONString(dict: jsonDict)
@@ -57,9 +62,6 @@ public class DropboxCreds : AccountAPICall, Account {
         // Also see https://github.com/SyncServerII/ServerMain/issues/4 -- this was causing a crash when returning `true`.
         return false
     }
-    
-    private static let apiAccessTokenKey = "access_token"
-    private static let apiTokenTypeKey = "token_type"
     
     public func generateTokens(completion:@escaping (Swift.Error?)->()) {
         // Not generating tokens, just saving.
@@ -98,6 +100,10 @@ public class DropboxCreds : AccountAPICall, Account {
         
         if let accessToken = headers[ServerConstants.HTTPOAuth2AccessTokenKey] {
             result[ServerConstants.HTTPOAuth2AccessTokenKey] = accessToken
+        }
+        
+        if let refreshToken = headers[ServerConstants.httpRequestRefreshToken] {
+            result[ServerConstants.httpRequestRefreshToken] = refreshToken
         }
         
         return result
@@ -145,6 +151,9 @@ public class DropboxCreds : AccountAPICall, Account {
         case .userId(_):
             try setProperty(jsonDict:jsonDict, key: accessTokenKey) { value in
                 result.accessToken = value
+            }
+            try setProperty(jsonDict:jsonDict, key: refreshTokenKey) { value in
+                result.refreshToken = value
             }
             
         default:
