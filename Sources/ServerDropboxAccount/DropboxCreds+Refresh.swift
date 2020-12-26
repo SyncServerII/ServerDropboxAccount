@@ -2,6 +2,7 @@
 import Foundation
 import KituraNet
 import LoggerAPI
+import ServerAccount
 
 extension DropboxCreds {
     enum CredentialsError : Swift.Error {
@@ -12,7 +13,7 @@ extension DropboxCreds {
         case errorSavingCredsToDatabase
         case noRefreshToken
         case expiredOrRevokedAccessToken
-        case noClientIdOrSecret
+        case noKeyOrSecret
     }
     
     // Use the refresh token to generate a new access token.
@@ -32,32 +33,32 @@ extension DropboxCreds {
         /*
         Calls to /oauth2/token need to be authenticated using the apps's key and secret. These can either be passed as application/x-www-form-urlencoded POST parameters (see parameters below) or via HTTP basic authentication. If basic authentication is used, the app key should be provided as the username, and the app secret should be provided as the password.
          */
+        // It looks like the base URL above is an error and it should be api.dropboxapi.com
         
-        guard self.refreshToken != nil else {
+        guard let refreshToken = refreshToken else {
             completion(CredentialsError.noRefreshToken)
+            Log.info("No refresh token")
             return
         }
         
-        /*
-        guard let clientId = configuration?.GoogleServerClientId,
-            let clientSecret = configuration?.GoogleServerClientSecret else {
-            Log.info("No client or secret from in configuration.")
-            completion(CredentialsError.noClientIdOrSecret)
+        guard let appKey = configuration?.DropboxAppKey,
+            let appSecret = configuration?.DropboxAppSecret else {
+            Log.info("No key or secret from in configuration.")
+            completion(CredentialsError.noKeyOrSecret)
             return
         }
 
-        let bodyParameters = "client_id=\(clientId)&client_secret=\(clientSecret)&refresh_token=\(self.refreshToken!)&grant_type=refresh_token"
+        let bodyParameters = "client_id=\(appKey)&client_secret=\(appSecret)&refresh_token=\(refreshToken)&grant_type=refresh_token"
         Log.debug("bodyParameters: \(bodyParameters)")
         
-        let additionalHeaders = ["Content-Type": "application/x-www-form-urlencoded"]
+        let additionalHeaders = [
+            "Content-Type": "application/x-www-form-urlencoded"
+        ]
         
-        self.apiCall(method: "POST", path: "/oauth2/v4/token", additionalHeaders:additionalHeaders, body: .string(bodyParameters), expectedFailureBody: .json) { apiResult, statusCode, responseHeaders in
+        self.apiCall(method: "POST", path: "/oauth2/token", additionalHeaders:additionalHeaders, body: .string(bodyParameters), expectedFailureBody: .json) { apiResult, statusCode, responseHeaders in
 
-            // When the refresh token has been revoked
-            // ["error": "invalid_grant", "error_description": "Token has been expired or revoked."]
-            // See https://stackoverflow.com/questions/10576386
+            // Don't yet know what response is expected with an expired access token.
             
-            // [1]
             if statusCode == HTTPStatusCode.badRequest,
                 case .dictionary(let dict)? = apiResult,
                 let error = dict["error"] as? String,
@@ -85,17 +86,17 @@ extension DropboxCreds {
                 return
             }
             
-            if let accessToken = dictionary[GoogleCreds.googleAPIAccessTokenKey] as? String {
+            if let accessToken = dictionary["access_token"] as? String {
                 self.accessToken = accessToken
                 Log.debug("Refreshed access token: \(accessToken)")
                 
-                if self.delegate == nil {
+                guard let delegate = self.delegate else {
                     Log.warning("Delegate was nil-- could not save creds to database!")
                     completion(nil)
                     return
                 }
                 
-                if self.delegate!.saveToDatabase(account: self) {
+                if delegate.saveToDatabase(account: self) {
                     completion(nil)
                     return
                 }
@@ -107,11 +108,23 @@ extension DropboxCreds {
             Log.error("Could not obtain parameter from JSON!")
             completion(CredentialsError.couldNotObtainParameterFromJSON)
         }
-        */
     }
+    
+    /*
+    https://www.dropbox.com/developers/documentation/http/documentation
+    
+    401	Bad or expired token. This can happen if the access token is expired or if the access token has been revoked by Dropbox or the user. To fix this, you should re-authenticate the user.
+        The Content-Type of the response is JSON of typeAuthError
+        
+            {
+                "error_summary": "expired_access_token/...",
+                "error": {
+                    ".tag": "expired_access_token"
+                }
+            }
+     */
 
-#if false
-    public override func apiCall(method:String, baseURL:String? = nil, path:String,
+    func apiCallAux(method:String, baseURL:String? = nil, path:String,
                  additionalHeaders: [String:String]? = nil, additionalOptions: [ClientRequest.Options] = [], urlParameters:String? = nil,
                  body:APICallBody? = nil,
                  returnResultWhenNon200Code:Bool = true,
@@ -125,48 +138,19 @@ extension DropboxCreds {
         if let accessToken = self.accessToken {
             headers["Authorization"] = "Bearer \(accessToken)"
         }
-
+        
+        let expiredAccessTokenHTTPCode:HTTPStatusCode = .badRequest
+        let tokenRevokedOrExpired = "Token revoked or expired"
+        let failedRefresh = "Failed refresh"
+        
         super.apiCall(method: method, baseURL: baseURL, path: path, additionalHeaders: headers, additionalOptions: additionalOptions, urlParameters: urlParameters, body: body,
             returnResultWhenNon200Code: returnResultWhenNon200Code,
             expectedSuccessBody: expectedSuccessBody,
             expectedFailureBody: expectedFailureBody) { (apiCallResult, statusCode, responseHeaders) in
-        
-            /* So far, I've seen two results from a Google expired or revoked refresh token:
-                1) an unauthorized http status here followed by [1] in refresh.
-                2) The following response here:
-                    ["error":
-                        ["code": 403,
-                         "message": "Daily Limit for Unauthenticated Use Exceeded. Continued use requires signup.",
-                         "errors":
-                            [
-                                ["message": "Daily Limit for Unauthenticated Use Exceeded. Continued use requires signup.",
-                                "reason": "dailyLimitExceededUnreg",
-                                "extendedHelp": "https://code.google.com/apis/console",
-                                "domain": "usageLimits"]
-                            ]
-                        ]
-                    ]
-            */
             
-            if statusCode == HTTPStatusCode.forbidden,
-                case .dictionary(let dict)? = apiCallResult,
-                let error = dict["error"] as? [String: Any],
-                let errors = error["errors"] as? [[String: Any]],
-                errors.count > 0,
-                let reason = errors[0]["reason"] as? String,
-                reason == "dailyLimitExceededUnreg" {
-                
-                Log.info("Google API Call: Daily limit exceeded.")
-                
-                completion(APICallResult.dictionary(
-                    ["error":self.tokenRevokedOrExpired]),
-                    .forbidden, nil)
-                return
-            }
-            
-            if statusCode == self.expiredAccessTokenHTTPCode && !self.alreadyRefreshed {
+            if statusCode == expiredAccessTokenHTTPCode && !self.alreadyRefreshed {
                 self.alreadyRefreshed = true
-                Log.info("Attempting to refresh Google access token...")
+                Log.info("Attempting to refresh Dropbox access token...")
                 
                 self.refresh() { error in
                     if let error = error {
@@ -175,13 +159,13 @@ extension DropboxCreds {
                             Log.info("Refresh token expired or revoked")
                             completion(
                                 APICallResult.dictionary(
-                                    ["error":self.tokenRevokedOrExpired]),
+                                    ["error":tokenRevokedOrExpired]),
                                 .unauthorized, nil)
                         default:
                             Log.error("Failed to refresh access token: \(String(describing: error))")
                             completion(
                                 APICallResult.dictionary(
-                                    ["error":self.failedRefresh]), .unauthorized, nil)
+                                    ["error":failedRefresh]), .unauthorized, nil)
                         }
                     }
                     else {
@@ -201,5 +185,4 @@ extension DropboxCreds {
             }
         }
     }
-#endif
 }

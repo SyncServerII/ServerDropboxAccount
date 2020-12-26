@@ -14,9 +14,13 @@ import ServerShared
 @testable import ServerDropboxAccount
 import ServerAccount
 
-struct DropboxPlist: Decodable {
-    let token: String
+struct DropboxPlist: Decodable, DropboxCredsConfiguration {
+    let token: String // access token
     let id: String
+    let refreshToken: String?
+
+    var DropboxAppKey:String?
+    var DropboxAppSecret:String?
     
     static func load(from url: URL) -> Self {
         guard let data = try? Data(contentsOf: url) else {
@@ -39,14 +43,15 @@ class FileDropboxTests: XCTestCase {
     let knownPresentFile2 = "DO-NOT-REMOVE2.txt"
 
     let knownAbsentFile = "Markwa.Farkwa.Blarkwa"
-    
-    // See https://stackoverflow.com/questions/47177036
-    // I know this is gross. Swift packages just don't have a good way to access resources right now.
-    let plist = DropboxPlist.load(from: URL(fileURLWithPath: "/Users/chris/Desktop/Apps/SyncServerII/Private/ServerDropboxAccount/token.plist"))
-    let plistRevoked = DropboxPlist.load(from: URL(fileURLWithPath: "/Users/chris/Desktop/Apps/SyncServerII/Private/ServerDropboxAccount/tokenRevoked.plist"))
+    var plist:DropboxPlist!
+    var plistRevoked:DropboxPlist!
 
     override func setUp() {
         super.setUp()
+        // See https://stackoverflow.com/questions/47177036
+        // I know this is gross. Swift packages just don't have a good way to access resources right now.
+        plist = DropboxPlist.load(from: URL(fileURLWithPath: "../Private/ServerDropboxAccount/token.plist"))
+        plistRevoked = DropboxPlist.load(from: URL(fileURLWithPath: "../Private/ServerDropboxAccount/tokenRevoked.plist"))
     }
     
     override func tearDown() {
@@ -252,12 +257,17 @@ class FileDropboxTests: XCTestCase {
             return nil
         }
         
+        guard let mimeType = uploadRequest.mimeType else {
+            XCTFail()
+            return nil
+        }
+        
         var cloudFileName:String!
         if let nonStandardFileName = nonStandardFileName {
             cloudFileName = nonStandardFileName
         }
         else {
-            cloudFileName = Filename.inCloud(deviceUUID: deviceUUID, fileUUID: uploadRequest.fileUUID, mimeType: uploadRequest.mimeType, fileVersion: fileVersion)
+            cloudFileName = Filename.inCloud(deviceUUID: deviceUUID, fileUUID: uploadRequest.fileUUID, mimeType: mimeType, fileVersion: fileVersion)
         }
         
         let exp = expectation(description: "\(#function)\(#line)")
@@ -457,7 +467,12 @@ class FileDropboxTests: XCTestCase {
         
         uploadFile(accountType: AccountScheme.dropbox.accountName, creds: creds, deviceUUID:deviceUUID, testFile: file, uploadRequest:uploadRequest, fileVersion: fileVersion)
         
-        let cloudFileName = Filename.inCloud(deviceUUID: deviceUUID, fileUUID: fileUUID, mimeType: uploadRequest.mimeType, fileVersion: fileVersion)
+        guard let mimeType = uploadRequest.mimeType else {
+            XCTFail()
+            return
+        }
+        
+        let cloudFileName = Filename.inCloud(deviceUUID: deviceUUID, fileUUID: fileUUID, mimeType: mimeType, fileVersion: fileVersion)
         Log.debug("cloudFileName: \(cloudFileName)")
         downloadFile(creds: creds, cloudFileName: cloudFileName, expectedStringFile: file)
     }

@@ -34,6 +34,9 @@ public class DropboxCreds : AccountAPICall, Account {
     weak var delegate:AccountDelegate?
     public var accountCreationUser:AccountCreationUser?
     
+    // This is to ensure that some error doesn't cause us to attempt to refresh the access token multiple times in a row. I'm assuming that for any one endpoint invocation, we'll at most need to refresh the access token a single time.
+    var alreadyRefreshed = false
+    
     static let accessTokenKey = "accessToken"
     public var accessToken: String!
 
@@ -184,5 +187,22 @@ public class DropboxCreds : AccountAPICall, Account {
         }
         
         return result
+    }
+    
+    public override func apiCall(method:String, baseURL:String? = nil, path:String,
+                 additionalHeaders: [String:String]? = nil, additionalOptions: [ClientRequest.Options] = [], urlParameters:String? = nil,
+                 body:APICallBody? = nil,
+                 returnResultWhenNon200Code:Bool = true,
+                 expectedSuccessBody:ExpectedResponse? = nil,
+                 expectedFailureBody:ExpectedResponse? = nil,
+        completion:@escaping (_ result: APICallResult?, HTTPStatusCode?, _ responseHeaders: HeadersContainer?)->()) {
+        
+        apiCallAux(method:method, baseURL:baseURL, path:path,
+                 additionalHeaders: additionalHeaders, additionalOptions: additionalOptions, urlParameters:urlParameters,
+                 body:body,
+                 returnResultWhenNon200Code:returnResultWhenNon200Code,
+                 expectedSuccessBody:expectedSuccessBody,
+                 expectedFailureBody:expectedFailureBody,
+                completion:completion)
     }
 }
