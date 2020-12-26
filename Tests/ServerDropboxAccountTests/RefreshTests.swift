@@ -1,4 +1,7 @@
 
+// Run on ubuntu with:
+//  swift test --enable-test-discovery --filter ServerDropboxAccountTests.RefreshTests
+
 import XCTest
 import Foundation
 import LoggerAPI
