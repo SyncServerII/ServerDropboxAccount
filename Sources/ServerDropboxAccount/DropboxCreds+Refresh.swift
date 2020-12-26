@@ -55,7 +55,8 @@ extension DropboxCreds {
             "Content-Type": "application/x-www-form-urlencoded"
         ]
         
-        self.apiCall(method: "POST", path: "/oauth2/token", additionalHeaders:additionalHeaders, body: .string(bodyParameters), expectedFailureBody: .json) { apiResult, statusCode, responseHeaders in
+        // Call `super` here because `self` is for the case of refreshing an access token, and that's what we're in the midst of right now.
+        super.apiCall(method: "POST", path: "/oauth2/token", additionalHeaders:additionalHeaders, body: .string(bodyParameters), expectedFailureBody: .json) { apiResult, statusCode, responseHeaders in
 
             // Don't yet know what response is expected with an expired access token.
             
@@ -115,13 +116,13 @@ extension DropboxCreds {
     
     401	Bad or expired token. This can happen if the access token is expired or if the access token has been revoked by Dropbox or the user. To fix this, you should re-authenticate the user.
         The Content-Type of the response is JSON of typeAuthError
-        
-            {
-                "error_summary": "expired_access_token/...",
-                "error": {
-                    ".tag": "expired_access_token"
-                }
-            }
+    
+    Example from actual use:
+        Optional(ServerAccount.APICallResult.dictionary([
+            "error": { ".tag" = "expired_access_token"; },
+            "error_summary": expired_access_token/
+            ]
+            )); statusCode: Optional(KituraNet.HTTPStatusCode.unauthorized)
      */
 
     func apiCallAux(method:String, baseURL:String? = nil, path:String,
@@ -139,49 +140,59 @@ extension DropboxCreds {
             headers["Authorization"] = "Bearer \(accessToken)"
         }
         
-        let expiredAccessTokenHTTPCode:HTTPStatusCode = .badRequest
-        let tokenRevokedOrExpired = "Token revoked or expired"
-        let failedRefresh = "Failed refresh"
+        let tokenRevokedOrExpiredResultError = "Token revoked or expired"
+        let failedRefreshResultError = "Failed refresh"
+        
+        // Because of problems with https://stackoverflow.com/questions/27142208/how-to-call-super-in-closure-in-swift
+        let parentAPICall = super.apiCall
         
         super.apiCall(method: method, baseURL: baseURL, path: path, additionalHeaders: headers, additionalOptions: additionalOptions, urlParameters: urlParameters, body: body,
             returnResultWhenNon200Code: returnResultWhenNon200Code,
             expectedSuccessBody: expectedSuccessBody,
-            expectedFailureBody: expectedFailureBody) { (apiCallResult, statusCode, responseHeaders) in
+            expectedFailureBody: expectedFailureBody) { [weak self] (apiCallResult, statusCode, responseHeaders) in
+            guard let self = self else { return }
             
-            if statusCode == expiredAccessTokenHTTPCode && !self.alreadyRefreshed {
-                self.alreadyRefreshed = true
-                Log.info("Attempting to refresh Dropbox access token...")
-                
-                self.refresh() { error in
-                    if let error = error {
-                        switch error {
-                        case CredentialsError.expiredOrRevokedAccessToken:
-                            Log.info("Refresh token expired or revoked")
-                            completion(
-                                APICallResult.dictionary(
-                                    ["error":tokenRevokedOrExpired]),
-                                .unauthorized, nil)
-                        default:
-                            Log.error("Failed to refresh access token: \(String(describing: error))")
-                            completion(
-                                APICallResult.dictionary(
-                                    ["error":failedRefresh]), .unauthorized, nil)
-                        }
-                    }
-                    else {
-                        Log.info("Successfully refreshed access token!")
-
-                        // Refresh was successful, update the authorization header and try the operation again.
-                        if let accessToken = self.accessToken {
-                            headers["Authorization"] = "Bearer \(accessToken)"
-                        }
-                        
-                        super.apiCall(method: method, baseURL: baseURL, path: path, additionalHeaders: headers, additionalOptions: additionalOptions, urlParameters: urlParameters, body: body, returnResultWhenNon200Code: returnResultWhenNon200Code, expectedSuccessBody: expectedSuccessBody, expectedFailureBody: expectedFailureBody, completion: completion)
-                    }
-                }
-            }
-            else {
+            guard !self.alreadyRefreshed &&
+                self.isExpiredAccessToken(result: apiCallResult, statusCode: statusCode) else {
                 completion(apiCallResult, statusCode, responseHeaders)
+                return
+            }
+            
+            // We haven't already refreshed the access token, and the access token has expired.
+            
+            self.alreadyRefreshed = true
+            
+            Log.info("Attempting to refresh Dropbox access token...")
+            self.testingDelegate?.attemptingAccessTokenRefresh(self)
+            
+            self.refresh() { [weak self] error in
+                guard let self = self else { return }
+
+                if let error = error {
+                    switch error {
+                    case CredentialsError.expiredOrRevokedAccessToken:
+                        Log.info("Refresh token expired or revoked")
+                        completion(
+                            APICallResult.dictionary(
+                                ["error":tokenRevokedOrExpiredResultError]),
+                            .unauthorized, nil)
+                    default:
+                        Log.error("Failed to refresh access token: \(String(describing: error))")
+                        completion(
+                            APICallResult.dictionary(
+                                ["error":failedRefreshResultError]), .unauthorized, nil)
+                    }
+                    return
+                }
+
+                Log.info("Successfully refreshed access token!")
+
+                // Refresh was successful, update the authorization header and try the operation again.
+                if let accessToken = self.accessToken {
+                    headers["Authorization"] = "Bearer \(accessToken)"
+                }
+                
+                parentAPICall(method, baseURL, path, headers, additionalOptions, urlParameters, body, returnResultWhenNon200Code, expectedSuccessBody, expectedFailureBody, completion)
             }
         }
     }

@@ -15,13 +15,14 @@ class RefreshTests: XCTestCase {
     let knownPresentFile = "IMPORTANT_README.txt"
 
     var plist:DropboxPlist!
+    var accessTokenRefreshAttempts = 0
     
     override func setUp() {
         super.setUp()
         HeliumLogger.use(.debug)
         
         // This should contain a valid refresh token
-        // The accessToken in this is stale.
+        // The accessToken in this is expired.
         guard let url = Bundle.module.url(forResource: "refreshToken", withExtension: "plist") else {
             XCTFail()
             return
@@ -65,49 +66,119 @@ class RefreshTests: XCTestCase {
         
         creds.accountId = plist.id
         
+        creds.testingDelegate = self
+        accessTokenRefreshAttempts = 0
+        
         let exp2 = expectation(description: "\(#function)\(#line)")
         
         creds.checkForFile(fileName: knownPresentFile) { result in
             switch result {
             case .success(let found):
                 XCTAssert(found)
-            case .failure, .accessTokenRevokedOrExpired:
+            case .failure:
                 XCTFail()
             }
             
             exp2.fulfill()
         }
         
+        // Should not have refreshed in that API call.
+        XCTAssert(accessTokenRefreshAttempts == 0)
+        
         waitForExpectations(timeout: 10, handler: nil)
     }
     
-    // TEMPORARY
     func testExpiredAccessToken() {
         guard let creds = DropboxCreds(configuration: plist, delegate: nil) else {
             XCTFail()
             return
         }
         
+        creds.testingDelegate = self
+        accessTokenRefreshAttempts = 0
+        
         creds.accountId = plist.id
         creds.accessToken = plist.token // expired access token
-
+        creds.refreshToken = plist.refreshToken // valid refresh token
+        
         let exp2 = expectation(description: "\(#function)\(#line)")
         
         creds.checkForFile(fileName: knownPresentFile) { result in
             switch result {
-            case .success(let found):
-                XCTAssert(found)
-            case .failure, .accessTokenRevokedOrExpired:
-                XCTFail()
+            case .failure(let fileCheckError):
+                XCTFail("\(fileCheckError)")
+            case .success:
+                break
             }
             
             exp2.fulfill()
         }
         
+        XCTAssert(accessTokenRefreshAttempts == 1)
+        
+        // creds should have the refreshed access token
+        XCTAssert(creds.accessToken != plist.token)
+        
         waitForExpectations(timeout: 10, handler: nil)
     }
     
-    func testRefreshDueToCloudStorageCall() {
+    func testTwoSuccessiveCloudStorageCallsWhenFirstRequiresAccessTokenRefresh() {
+        guard let creds = DropboxCreds(configuration: plist, delegate: nil) else {
+            XCTFail()
+            return
+        }
+        
+        creds.testingDelegate = self
+        accessTokenRefreshAttempts = 0
+        
+        creds.accountId = plist.id
+        creds.accessToken = plist.token // expired access token
+        creds.refreshToken = plist.refreshToken // valid refresh token
+        
+        let exp2 = expectation(description: "\(#function)\(#line)")
+        
+        creds.checkForFile(fileName: knownPresentFile) { result in
+            switch result {
+            case .failure(let fileCheckError):
+                XCTFail("\(fileCheckError)")
+            case .success:
+                break
+            }
+            
+            exp2.fulfill()
+        }
+        
+        XCTAssert(accessTokenRefreshAttempts == 1)
+        
+        // creds should have the refreshed access token
+        XCTAssert(creds.accessToken != plist.token)
+        
+        waitForExpectations(timeout: 10, handler: nil)
+        
+        // 2nd cloud storage call-- try to download the file. Expecting no access token refresh this time.
+        accessTokenRefreshAttempts = 0
+        
+        let exp3 = expectation(description: "\(#function)\(#line)")
+        
+        creds.downloadFile(cloudFileName: knownPresentFile) { result in
+            switch result {
+            case .success:
+                break
+            case .accessTokenRevokedOrExpired, .failure, .fileNotFound:
+                XCTFail()
+            }
+            
+            exp3.fulfill()
+        }
+        
+        XCTAssert(accessTokenRefreshAttempts == 0)
+        
+        waitForExpectations(timeout: 10, handler: nil)
     }
 }
 
+extension RefreshTests: DropboxCredsDelegate {
+    func attemptingAccessTokenRefresh(_ creds: DropboxCreds) {
+        accessTokenRefreshAttempts += 1
+    }
+}

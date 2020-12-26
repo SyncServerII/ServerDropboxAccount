@@ -18,6 +18,11 @@ public protocol DropboxCredsConfiguration {
     var DropboxAppSecret:String? { get }
 }
 
+// For testing
+protocol DropboxCredsDelegate: AnyObject {
+    func attemptingAccessTokenRefresh(_ creds: DropboxCreds)
+}
+
 public class DropboxCreds : AccountAPICall, Account {
     public static var accountScheme:AccountScheme {
         return .dropbox
@@ -32,9 +37,12 @@ public class DropboxCreds : AccountAPICall, Account {
     }
     
     weak var delegate:AccountDelegate?
+    weak var testingDelegate: DropboxCredsDelegate?
+    
     public var accountCreationUser:AccountCreationUser?
     
     // This is to ensure that some error doesn't cause us to attempt to refresh the access token multiple times in a row. I'm assuming that for any one endpoint invocation, we'll at most need to refresh the access token a single time.
+    // I never change this from true back to false because the DropboxCreds will only last, in real server operation, for the duration of an endpoint call (or similar operation). And since those are relatively short-lived an access token will never need refreshing more than once.
     var alreadyRefreshed = false
     
     static let accessTokenKey = "accessToken"

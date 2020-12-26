@@ -33,8 +33,14 @@ extension DropboxCreds {
         case couldNotGetId
     }
     
+    enum FileCheckError: Swift.Error {
+        case expiredAccessToken
+        case revokedAccessToken
+        case other(Swift.Error)
+    }
+    
     // On success, Bool in result indicates whether or not the file exists.
-    func checkForFile(fileName: String, completion:@escaping (Result<Bool>)->()) {
+    func checkForFile(fileName: String, completion:@escaping (Swift.Result<Bool, FileCheckError>)->()) {
         // See https://www.dropbox.com/developers/documentation/http/documentation#files-get_metadata
         /*
          curl -X POST https://api.dropboxapi.com/2/files/get_metadata \
@@ -48,25 +54,25 @@ extension DropboxCreds {
         
         self.apiCall(method: "POST", path: "/2/files/get_metadata", additionalHeaders: basicHeaders(), body: .string(body), expectedFailureBody: .json) { (apiResult, statusCode, responseHeaders) in
         
-            if self.revokedAccessToken(result: apiResult, statusCode: statusCode) {
-                completion(.accessTokenRevokedOrExpired)
+            if self.isRevokedAccessToken(result: apiResult, statusCode: statusCode) {
+                completion(.failure(.revokedAccessToken))
                 return
             }
             
             Log.debug("apiResult: \(String(describing: apiResult)); statusCode: \(String(describing: statusCode))")
 
             guard statusCode == HTTPStatusCode.OK || statusCode?.rawValue == DropboxCreds.requestFailureCode else {
-                completion(.failure(DropboxError.badStatusCode(statusCode)))
+                completion(.failure(.other(DropboxError.badStatusCode(statusCode))))
                 return
             }
             
             guard let apiResult = apiResult else {
-                completion(.failure(DropboxError.nilAPIResult))
+                completion(.failure(.other(DropboxError.nilAPIResult)))
                 return
             }
             
             guard case .dictionary(let dictionary) = apiResult else {
-                completion(.failure(DropboxError.badJSONResult))
+                completion(.failure(.other(DropboxError.badJSONResult)))
                 return
             }
             
@@ -83,7 +89,7 @@ extension DropboxCreds {
                 completion(.success(false))
             }
             else {
-                completion(.failure(DropboxError.unknownError))
+                completion(.failure(.other(DropboxError.unknownError)))
             }
         }
     }
@@ -105,7 +111,7 @@ extension DropboxCreds {
             
         self.apiCall(method: "POST", baseURL: "content.dropboxapi.com", path: "/2/files/upload", additionalHeaders: headers, body: .data(data), expectedFailureBody: .json) {[unowned self] (apiResult, statusCode, responseHeaders) in
             
-            if self.revokedAccessToken(result: apiResult, statusCode: statusCode) {
+            if self.isRevokedAccessToken(result: apiResult, statusCode: statusCode) {
                 completion(.accessTokenRevokedOrExpired)
                 return
             }
@@ -136,24 +142,44 @@ extension DropboxCreds {
         }
     }
     
-    // See https://github.com/dropbox/dropbox-sdk-obj-c/issues/83
-    func revokedAccessToken(result: APICallResult?, statusCode: HTTPStatusCode?) -> Bool {
+    enum DropboxAPIError: String {
+        // Both of these also have `HTTPStatusCode.unauthorized`
+        
         /* ["error_summary": "invalid_access_token/...",
             "error":
                 [".tag": "invalid_access_token"]
             ]
         */
+        case invalidAccessToken = "invalid_access_token"
         
+        /* ["error_summary": "expired_access_token/...",
+            "error":
+                [".tag": "expired_access_token"]
+            ]
+         */
+        case expiredAccessToken = "expired_access_token"
+    }
+
+    func isDropboxError(_ error: DropboxAPIError, result: APICallResult?, statusCode: HTTPStatusCode?) -> Bool {
         if statusCode == HTTPStatusCode.unauthorized,
             case .dictionary(let dict)? = result,
             let tag = dict["error"] as? [String: Any],
             let message = tag[".tag"] as? String,
-            message == "invalid_access_token" {
+            message == error.rawValue {
             return true
         }
         else {
             return false
         }
+    }
+    
+    // See https://github.com/dropbox/dropbox-sdk-obj-c/issues/83
+    func isRevokedAccessToken(result: APICallResult?, statusCode: HTTPStatusCode?) -> Bool {
+        return isDropboxError(.invalidAccessToken, result: result, statusCode: statusCode)
+    }
+    
+    func isExpiredAccessToken(result: APICallResult?, statusCode: HTTPStatusCode?) -> Bool {
+        return isDropboxError(.expiredAccessToken, result: result, statusCode: statusCode)
     }
 }
 
@@ -167,12 +193,16 @@ extension DropboxCreds : CloudStorage {
         
         // First, look to see if the file exists on Dropbox. Don't want to upload it more than once.
 
-        checkForFile(fileName: cloudFileName) {[unowned self] result in
+        checkForFile(fileName: cloudFileName) {[weak self] result in
+            guard let self = self else { return }
             switch result {
-            case .failure(let error):
-                completion(.failure(UploadFileError.fileCheckFailed(error)))
-            case .accessTokenRevokedOrExpired:
-                completion(.accessTokenRevokedOrExpired)
+            case .failure(let fileCheckError):
+                switch fileCheckError {
+                case .expiredAccessToken, .revokedAccessToken:
+                    completion(.accessTokenRevokedOrExpired)
+                case .other(let error):
+                    completion(.failure(UploadFileError.fileCheckFailed(error)))
+                }
             case .success(let found):
                 if found {
                    // Don't need to upload it again.
@@ -225,7 +255,7 @@ extension DropboxCreds : CloudStorage {
                 return
             }
             
-            if self.revokedAccessToken(result: apiResult, statusCode: statusCode) {
+            if self.isRevokedAccessToken(result: apiResult, statusCode: statusCode) {
                 completion(.accessTokenRevokedOrExpired)
                 return
             }
@@ -285,7 +315,7 @@ extension DropboxCreds : CloudStorage {
         
         self.apiCall(method: "POST", path: "/2/files/delete_v2", additionalHeaders: headers, body: .string(body), expectedFailureBody: .json) { (apiResult, statusCode, responseHeaders) in
         
-            if self.revokedAccessToken(result: apiResult, statusCode: statusCode) {
+            if self.isRevokedAccessToken(result: apiResult, statusCode: statusCode) {
                 completion(.accessTokenRevokedOrExpired)
                 return
             }
@@ -320,7 +350,17 @@ extension DropboxCreds : CloudStorage {
         completion:@escaping (Result<Bool>)->()) {
         
         checkForFile(fileName: cloudFileName) { result in
-            completion(result)
+            switch result {
+            case .failure(let fileCheckError):
+                switch fileCheckError {
+                case .expiredAccessToken, .revokedAccessToken:
+                    completion(.accessTokenRevokedOrExpired)
+                case .other(let error):
+                    completion(.failure(UploadFileError.fileCheckFailed(error)))
+                }
+            case .success(let found):
+                completion(.success(found))
+            }
         }
     }
 }
