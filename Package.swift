@@ -1,4 +1,4 @@
-// swift-tools-version:5.2
+// swift-tools-version:5.3
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 // Problems building this package on Mac OS: https://stackoverflow.com/questions/65452179/xcode-giving-cannot-find-type-type-in-scope-errors-with-swift-package
@@ -22,6 +22,9 @@ let package = Package(
             dependencies: ["ServerAccount"]),
         .testTarget(
             name: "ServerDropboxAccountTests",
-            dependencies: ["ServerDropboxAccount"]),
+            dependencies: ["ServerDropboxAccount"],
+            resources: [
+                .process("Configs")
+            ]),
     ]
 )

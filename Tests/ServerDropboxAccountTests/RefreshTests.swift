@@ -22,7 +22,12 @@ class RefreshTests: XCTestCase {
         
         // This should contain a valid refresh token
         // The accessToken in this is stale.
-        plist = DropboxPlist.load(from: URL(fileURLWithPath: "../Private/ServerDropboxAccount/refreshToken.plist"))
+        guard let url = Bundle.module.url(forResource: "refreshToken", withExtension: "plist") else {
+            XCTFail()
+            return
+        }
+        
+        plist = DropboxPlist.load(from: url)
     }
     
     override func tearDown() {
@@ -84,7 +89,7 @@ class RefreshTests: XCTestCase {
         }
         
         creds.accountId = plist.id
-        creds.accessToken = plist.accessToken // expired access token
+        creds.accessToken = plist.token // expired access token
 
         let exp2 = expectation(description: "\(#function)\(#line)")
         

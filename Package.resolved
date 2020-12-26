@@ -11,15 +11,6 @@
         }
       },
       {
-        "package": "Signals",
-        "repositoryURL": "https://github.com/Kitura/BlueSignals.git",
-        "state": {
-          "branch": null,
-          "revision": "1f6c49e186c8a4eeef87ba14f2f97b8646559d13",
-          "version": "1.0.200"
-        }
-      },
-      {
         "package": "Socket",
         "repositoryURL": "https://github.com/Kitura/BlueSocket.git",
         "state": {
@@ -110,21 +101,12 @@
         }
       },
       {
-        "package": "OpenSSL",
-        "repositoryURL": "https://github.com/Kitura/OpenSSL.git",
-        "state": {
-          "branch": null,
-          "revision": "80b04f33b086fc90e28d9ae159d43705fb348e16",
-          "version": "2.2.200"
-        }
-      },
-      {
         "package": "ServerAccount",
         "repositoryURL": "https://github.com/SyncServerII/ServerAccount.git",
         "state": {
           "branch": null,
-          "revision": "cdbdcf096e4b55686a2cb640fa625d14ab321022",
-          "version": "0.0.6"
+          "revision": "2a73279246228334b7d11792c6bc7abd53f32961",
+          "version": "0.0.7"
         }
       },
       {
