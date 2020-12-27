@@ -185,7 +185,9 @@ public class DropboxCreds : AccountAPICall, Account {
             try setProperty(jsonDict:jsonDict, key: accessTokenKey) { value in
                 result.accessToken = value
             }
-            try setProperty(jsonDict:jsonDict, key: refreshTokenKey) { value in
+            
+            // 12/26/20; Not going to make it an error for refresh token not to be present-- in order to facilitate the Dropbox transition from short lived to long lived tokens. i.e., initially accounts will not have the refresh token in the database and don't want that to cause a failure.
+            try setProperty(jsonDict:jsonDict, key: refreshTokenKey, required: false) { value in
                 result.refreshToken = value
             }
             

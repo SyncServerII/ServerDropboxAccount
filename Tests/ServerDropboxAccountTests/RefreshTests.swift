@@ -1,6 +1,7 @@
 
 // Run on ubuntu with:
 //  swift test --enable-test-discovery --filter ServerDropboxAccountTests.RefreshTests
+// Running the tests on ubuntu isn't currently working. I think because of the way I'm using the `.copy` in the Package.swift and the sym links I'm using for the .plist files. See also https://stackoverflow.com/questions/47177036/use-resources-in-unit-tests-with-swift-package-manager/49090702
 
 import XCTest
 import Foundation

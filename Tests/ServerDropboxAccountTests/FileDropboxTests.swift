@@ -24,6 +24,7 @@ struct DropboxPlist: Decodable, DropboxCredsConfiguration {
     
     static func load(from url: URL) -> Self {
         guard let data = try? Data(contentsOf: url) else {
+            Log.debug("Attempting to get data from URL: \(url)")
             fatalError("Could not get data from url")
         }
 
