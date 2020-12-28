@@ -43,7 +43,7 @@ extension DropboxCreds {
         
         guard let appKey = configuration?.DropboxAppKey,
             let appSecret = configuration?.DropboxAppSecret else {
-            Log.info("No key or secret from in configuration.")
+            Log.info("No key or secret in configuration.")
             completion(CredentialsError.noKeyOrSecret)
             return
         }
