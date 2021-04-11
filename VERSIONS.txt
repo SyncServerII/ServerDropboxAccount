@@ -1,5 +1,8 @@
 ServerDropboxAccount
-    
+
+Version 0.0.4 (4/10/21)
+    Added logging.
+        
 Version 0.0.3 (4/10/21)
     Added logging.
 	

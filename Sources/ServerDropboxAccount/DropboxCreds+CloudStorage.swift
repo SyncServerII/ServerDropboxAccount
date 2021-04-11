@@ -62,6 +62,7 @@ extension DropboxCreds {
             Log.debug("apiResult: \(String(describing: apiResult)); statusCode: \(String(describing: statusCode))")
 
             guard statusCode == HTTPStatusCode.OK || statusCode?.rawValue == DropboxCreds.requestFailureCode else {
+                Log.error("responseHeaders: \(String(describing: responseHeaders))")
                 completion(.failure(.other(DropboxError.badStatusCode(statusCode))))
                 return
             }
@@ -262,6 +263,7 @@ extension DropboxCreds : CloudStorage {
             }
             
             guard statusCode == HTTPStatusCode.OK else {
+                Log.error("responseHeaders: \(String(describing: responseHeaders))")
                 completion(.failure(DropboxError.badStatusCode(statusCode)))
                 return
             }
@@ -322,6 +324,7 @@ extension DropboxCreds : CloudStorage {
             }
             
             guard statusCode == HTTPStatusCode.OK else {
+                Log.error("responseHeaders: \(String(describing: responseHeaders))")
                 completion(.failure(DropboxError.badStatusCode(statusCode)))
                 return
             }
