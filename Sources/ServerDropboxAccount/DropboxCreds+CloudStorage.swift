@@ -117,6 +117,7 @@ extension DropboxCreds {
             }
 
             guard statusCode == HTTPStatusCode.OK else {
+                Log.error("responseHeaders: \(String(describing: responseHeaders))")
                 completion(.failure(DropboxError.badStatusCode(statusCode)))
                 return
             }

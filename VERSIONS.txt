@@ -1,5 +1,8 @@
 ServerDropboxAccount
     
+Version 0.0.3 (4/10/21)
+    Added logging.
+	
 Version 0.0.2 (1/23/21)
     Starting beta testing
 	Migration to short-lived access tokens & refresh token.
