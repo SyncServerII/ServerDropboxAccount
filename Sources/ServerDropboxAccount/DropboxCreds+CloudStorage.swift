@@ -39,6 +39,16 @@ extension DropboxCreds {
         case other(Swift.Error)
     }
     
+    private func logHeaders(responseHeaders: HeadersContainer?) {
+        guard let responseHeaders = responseHeaders else {
+            return
+        }
+    
+        for header in responseHeaders {
+            Log.debug("header: \(header)")
+        }
+    }
+    
     // On success, Bool in result indicates whether or not the file exists.
     func checkForFile(fileName: String, completion:@escaping (Swift.Result<Bool, FileCheckError>)->()) {
         // See https://www.dropbox.com/developers/documentation/http/documentation#files-get_metadata
@@ -62,7 +72,7 @@ extension DropboxCreds {
             Log.debug("apiResult: \(String(describing: apiResult)); statusCode: \(String(describing: statusCode))")
 
             guard statusCode == HTTPStatusCode.OK || statusCode?.rawValue == DropboxCreds.requestFailureCode else {
-                Log.error("responseHeaders: \(String(describing: responseHeaders))")
+                self.logHeaders(responseHeaders:responseHeaders)
                 completion(.failure(.other(DropboxError.badStatusCode(statusCode))))
                 return
             }
@@ -118,7 +128,7 @@ extension DropboxCreds {
             }
 
             guard statusCode == HTTPStatusCode.OK else {
-                Log.error("responseHeaders: \(String(describing: responseHeaders))")
+                self.logHeaders(responseHeaders:responseHeaders)
                 completion(.failure(DropboxError.badStatusCode(statusCode)))
                 return
             }
@@ -263,7 +273,7 @@ extension DropboxCreds : CloudStorage {
             }
             
             guard statusCode == HTTPStatusCode.OK else {
-                Log.error("responseHeaders: \(String(describing: responseHeaders))")
+                self.logHeaders(responseHeaders:responseHeaders)
                 completion(.failure(DropboxError.badStatusCode(statusCode)))
                 return
             }
@@ -324,7 +334,7 @@ extension DropboxCreds : CloudStorage {
             }
             
             guard statusCode == HTTPStatusCode.OK else {
-                Log.error("responseHeaders: \(String(describing: responseHeaders))")
+                self.logHeaders(responseHeaders:responseHeaders)
                 completion(.failure(DropboxError.badStatusCode(statusCode)))
                 return
             }
